@@ -1,4 +1,6 @@
 import os
+from xml.dom.minidom import Document
+import fitz #adding import of PyMuPDF to handle pdfs
 from typing import List
 
 
@@ -7,22 +9,48 @@ class TextFileLoader:
         self.documents = []
         self.path = path
         self.encoding = encoding
+        print(f"Initialized with path: {self.path}")
 
     def load(self):
+        print(f"Checking path: {self.path}")
         if os.path.isdir(self.path):
+            print("Path is a directory.")
             self.load_directory()
-        elif os.path.isfile(self.path) and self.path.endswith(".txt"):
-            self.load_file()
+        elif os.path.isfile(self.path):
+            print(f"Path is a file with extension: {os.path.splitext(self.path)[-1]}")
+            if self.path.endswith(".txt") or self.path.endswith(".pdf"): #added code to update 'load_file' method to handle '.txt
+                print("Path is a valid .txt or .pdf file.")
+                self.load_file()
+            else:
+                raise ValueError("Unsupported file format. Only .txt and .pdf files are supported.")
         else:
             raise ValueError(
-                "Provided path is neither a valid directory nor a .txt file."
+                "Provided path is neither a valid directory nor a .txt or .pdf file."
             )
 
     def load_file(self):
-        with open(self.path, "r", encoding=self.encoding) as f:
-            self.documents.append(f.read())
+        #updating the 'load_file' method to handle pdf files
+        print(f"Loading file: {self.path}")
+        if self.path.endswith(".txt"):
+            with open(self.path, "r", encoding=self.encoding) as f:
+                self.documents.append(f.read())
+        elif self.path.endswith(".pdf"):
+            self._load_pdf()
+        else:
+            raise ValueError("Unsupported file format. Only .txt and .pdf files are supported.")
+  
+   #adding a new '_load_pdf' method to handle pdf files
+
+    def _load_pdf(self):
+        print(f"Loading pdf file: {self.path}")
+        document = fitz.open(self.path)
+        text = ""
+        for page in document:
+            text += page.get_text()
+        self.documents.append(text)
 
     def load_directory(self):
+        print(f"Loading directory: {self.path}")
         for root, _, files in os.walk(self.path):
             for file in files:
                 if file.endswith(".txt"):
@@ -30,6 +58,18 @@ class TextFileLoader:
                         os.path.join(root, file), "r", encoding=self.encoding
                     ) as f:
                         self.documents.append(f.read())
+                #adding code to handle pdf files
+                elif file.endswith(".pdf"):
+                    pdf_path = os.path.join(root, file)
+                    self._load_pdf_path(pdf_path)
+ 
+    def _load_pdf_path(self, pdf_path):
+        print(f"Loading PDF from directory: {pdf_path}")
+        document = fitz.open(pdf_path)
+        text = ""
+        for page in document:
+            text += page.get_text()
+        self.documents.append(text)
 
     def load_documents(self):
         self.load()
